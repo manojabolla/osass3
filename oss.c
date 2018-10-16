@@ -9,6 +9,10 @@
 #include <time.h>
 #include <semaphore.h>
 #include <string.h>
+#include <fcntl.h>
+
+#define sem_name "/bolla21"
+sem_t *sem;
 void signalHandler(int);
 
 void signalHandler(int SIGVAL) {
@@ -22,6 +26,7 @@ void signalHandler(int SIGVAL) {
 	if(SIGVAL == SIGALRM) {
 		fprintf(stderr, "%sMaster time out. Terminating remaining processes.\n");
 	}
+	//sem_unlink(SEMNAME);
 	kill(-getpgrp(), SIGQUIT);/*kills all the children of process*/
 	exit(1);
 	
@@ -76,22 +81,10 @@ int main (int argc, char *argv[]) {
 	shared_mem[0] = 0;
         shared_mem[1] = 0;
         //fprintf(stderr, "Shared Memory copied \n"); 
-	
-        while(1)
-	{
-		shared_mem[0] += 1;
 
-
-		if(shared_mem[0] >= 1000000)
-		{
-			shared_mem[0] = 0;
-  			shared_mem[1] += 1; 
-		}
-		fprintf(stderr,"Millsec:%d,Sec:%d\n",shared_mem[0],shared_mem[1]);	
-        }        
 
 	int segment_id2;
-        int segment_size2;
+        int segment_size2;	
         int buf2[1];
 
         /* Allocate a shared memory segment.  */
@@ -99,27 +92,46 @@ int main (int argc, char *argv[]) {
         segment_id2 = shmget (key2, sizeof(buf2[1]), 0777| IPC_CREAT);
            
 	int *shared_msg =  shmat (segment_id2, 0, 0);
-
+	sem = sem_open(sem_name,O_CREAT,0666,1);
         shared_msg[0] = 0;
         shared_msg[1] = 0;
 	shared_msg[2] = 0;
 	   		
 	char arg2[50];
  	char arg3[50];
+	char arg4[50];
 	snprintf(arg2,50,"%d",segment_id);
 	snprintf(arg3,50,"%d",segment_id2);
+	snprintf(arg4,50,"%s",sem_name);
 	int k;
 	for(k = 0; k < s ; k++)
 	{
 		fprintf(stderr, "child Executed %d \n", k);	
   		if (fork() == 0) 
    		{
-			execlp("./user","./user",arg2,arg3,(char *)NULL);// If we get here, exec failed
+			execlp("./user","./user",arg2,arg3,arg4,(char *)NULL);// If we get here, exec failed
 			fprintf(stderr,"%s failed to exec worker!\n",argv[0]);		
 			exit(-1); 
 		}	
 	}
-
+	
+	while(1)
+	{
+		if(shared_mem[0] >= 1000000000)
+		{
+			shared_mem[0] = 0;
+  			shared_mem[1] += 1; 
+		}
+		shared_mem[0] += 1;
+	
+		//fprintf(stderr, "%d \n", shared_msg[2]);	
+		if(shared_msg[2] > 0)
+		{
+		fprintf(stderr, "Child Pid \n ");
+		fprintf(stderr, "OSS: child pid %d is terminating at my time %d.%d, beacuse it reached %d.%d in user", shared_msg[2], shared_mem[1],shared_mem[0],shared_msg[0], shared_msg[1]);	
+		shared_msg[2] = 0;
+       		}
+	 }
 
 
 
@@ -133,7 +145,7 @@ int main (int argc, char *argv[]) {
 	/* Detach the shared memory segment.  */
   	shmdt ((void *) shared_mem);
   	shmctl (segment_id, IPC_RMID, NULL);
-	
+	sem_unlink(sem_name);	
 	return 0;
 }
 
