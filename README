@@ -1,0 +1,22 @@
+Create a directory bolla.3
+
+The Makefile is created and  can be executed using make all. 
+This generates the executables oss and user.
+Type ./programname [arguments]
+
+
+Run ./oss -s[process spawned]-l[logfile] -z[time]
+    ./master -h[help]
+
+Log:
+
+default.log - file shows the processID.
+Sample message:
+OSS: Child pid is terminating at my time xx.yy because it reached mm.nn in user 
+
+To clean type make clean.
+
+Used git for version control.
+Type gitlog
+
+
